@@ -5,7 +5,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Graphics.Rendering.Cairo.LibRSvg.Context (Svg(..), Cairo, unCairo, rsvgCtx) where
 
-import Data.Monoid (mempty, (<>))
 import qualified Language.C.Inline as C
 import           Language.C.Inline.Context
 import qualified Language.C.Types as C

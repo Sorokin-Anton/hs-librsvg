@@ -1,4 +1,3 @@
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -19,10 +18,12 @@ import Graphics.Rendering.Cairo
 import Graphics.Rendering.Cairo.LibRSvg.Context
 import Foreign.Ptr
 import Foreign.ForeignPtr
-import Protolude
 
 import qualified Language.C.Inline as C
 import qualified Language.C.Inline.Unsafe as CU
+
+import Data.Bifunctor (bimap)
+import Control.Monad.Reader (asks)
 
 C.context (rsvgCtx <> C.bsCtx <> C.fptrCtx)
 C.include "string.h"
@@ -36,13 +37,13 @@ render svg = do
   }|]
 
 renderSub :: Svg -> ByteString -> Render Bool
-renderSub svg id = do
+renderSub svg additionalBS = do
   cairo <- asks unCairo
-  toEnum . fromIntegral <$> liftIO (useAsCString id $ \id_ -> [C.exp|int {
+  toEnum . fromIntegral <$> liftIO (useAsCString additionalBS $ \id_ -> [C.exp|int {
   rsvg_handle_render_cairo_sub($fptr-ptr:(RsvgHandle *svg), $(cairo_t *cairo), $(char *id_))
   }|])
 
-fromBuffer :: ByteString -> IO (Either Text Svg)
+fromBuffer :: ByteString -> IO (Either ByteString Svg)
 fromBuffer bs = unsafeUseAsCStringLen bs $ \(buf, fromIntegral -> len) -> do
   (ptr, err) <- C.withPtrs_ $ \(p,errMsg) -> [C.block|void {
     GError *err = NULL;
@@ -51,8 +52,8 @@ fromBuffer bs = unsafeUseAsCStringLen bs $ \(buf, fromIntegral -> len) -> do
       *$(char **errMsg) = strdup(err->message);
     }
     }|]
-  if ptr==nullPtr
-    then Left  . toS <$> unsafePackMallocCString err
+  if ptr == nullPtr
+    then Left  <$> unsafePackMallocCString err
     else Right . Svg <$> newForeignPtr freeSvg ptr
 
 dimensions :: Svg -> IO (Int, Int)

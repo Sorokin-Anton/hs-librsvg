@@ -1,3 +1,6 @@
+.stack-work/
+*~
+stack.yaml.lock
 result
 dist*
 cabal.project.local
